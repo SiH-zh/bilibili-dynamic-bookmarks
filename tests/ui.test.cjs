@@ -153,3 +153,22 @@ test('从真实脚本入口启动时读取油猴存储并注入界面', t => {
   assert.equal(values.get('bdb.v1.account.123').bookmarks[0].id, '1');
   t.after(() => { w.dispatchEvent(new w.PageTransitionEvent('pagehide')); dom.window.close(); });
 });
+test('实际网页的字符串时间戳可同时生成精确时间和三点菜单标记入口', t => {
+  const f = fixture(t);
+  f.vm.list.forEach(r => { r.modules.module_author.pub_ts = String(r.modules.module_author.pub_ts); });
+  f.doc.querySelectorAll('.bdb-exact,.bdb-menu-item').forEach(e => e.remove());
+  f.app.scan();
+  assert.equal(f.doc.querySelectorAll('.bdb-exact').length, 2);
+  assert.equal(f.doc.querySelectorAll('.bdb-menu-item').length, 2);
+  f.click('标记此视频');
+  assert.equal(typeof f.app.getState().data.bookmarks[0].ts, 'number');
+  assert.equal(f.app.getState().data.bookmarks[0].id, '1');
+});
+test('标记模块启用吸顶布局，退出视频页后恢复网站侧栏', t => {
+  const f = fixture(t);
+  assert.ok(f.doc.querySelector('aside.right').classList.contains('bdb-sidebar'));
+  assert.equal(f.w.getComputedStyle(f.doc.querySelector('#bdb-panel')).position, 'sticky');
+  assert.equal(f.w.getComputedStyle(f.doc.querySelector('#bdb-panel')).top, '80px');
+  f.w.history.pushState({}, '', '/?tab=all'); f.app.scan();
+  assert.equal(f.doc.querySelector('.bdb-sidebar'), null);
+});

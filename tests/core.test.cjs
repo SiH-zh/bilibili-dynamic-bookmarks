@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify } = require('../bilibili-dynamic-bookmarks.user.js');
+const { parseTimestamp, formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify } = require('../bilibili-dynamic-bookmarks.user.js');
 const make = (id = '1270165298557747203', ts = 1794561600) => ({ id, ts, title: '视频标题', author: '作者', bvid: 'BV1SgWi6yEjJ' });
 
 test('固定北京时间并保留秒数及跨年年份', () => {
@@ -15,6 +15,15 @@ test('读取当前动态时间，不误用转发原动态或模糊时间', () =>
   assert.equal(meta.ts, 1000);
   assert.equal(meta.id, make().id);
   assert.equal(recordMeta({ id_str: 1270165298557747203 }), null);
+});
+test('兼容实际网页的字符串秒级时间戳，并拒绝模糊时间和非整数', () => {
+  assert.equal(parseTimestamp('1794575557'), 1794575557);
+  assert.equal(parseTimestamp(1794575557), 1794575557);
+  for (const value of ['昨天', '1分钟前', '', '1.5', '1e9', ' 1000 ', '1794575557000', null, undefined, NaN, Infinity, -1]) {
+    assert.equal(parseTimestamp(value), null, `应拒绝：${String(value)}`);
+  }
+  const meta = recordMeta({ id_str: '1270165298557747203', modules: { module_author: { pub_ts: '1794575557' }, module_dynamic: { major: { archive: { title: '字符串时间视频' } } } } });
+  assert.equal(meta.ts, 1794575557);
 });
 test('大整数动态标识按字符串保存，多标记去重且不覆盖原标记时间', () => {
   const first = addBookmark(null, make(), 100);

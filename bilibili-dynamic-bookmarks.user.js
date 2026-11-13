@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩动态：精确时间与视频标记
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      0.1.0
+// @version      0.1.1
 // @description  动态视频投稿时间精确到秒；多标记、批量删除、加载进度与返回附近视频。
 // @match        https://t.bilibili.com/*
 // @run-at       document-idle
@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '0.1.0';
+  const VERSION = '0.1.1';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';
@@ -26,6 +26,12 @@
   const pad = n => String(n).padStart(2, '0');
   const validTime = n => Number.isSafeInteger(n) && n > 0 && n < 100000000000;
   const validId = s => typeof s === 'string' && /^\d{1,30}$/.test(s);
+
+  function parseTimestamp(value) {
+    // 网页组件可能将接口的秒级时间戳转成十进制字符串；只转换明确的整数。
+    const n = typeof value === 'string' && /^\d{1,11}$/.test(value) ? Number(value) : value;
+    return validTime(n) ? n : null;
+  }
 
   function formatTime(ts, withYear = false) {
     if (!validTime(ts)) return '时间数据不可用';
@@ -38,7 +44,7 @@
     if (!item || !validId(item.id_str)) return null;
     const author = item.modules?.module_author;
     const archive = item.modules?.module_dynamic?.major?.archive;
-    const ts = author?.pub_ts;
+    const ts = parseTimestamp(author?.pub_ts);
     if (!validTime(ts) || !archive) return null;
     return {
       id: item.id_str, ts,
@@ -228,6 +234,7 @@
       if (panel?.isConnected) return;
       const right = doc.querySelector('aside.right');
       if (!right) return;
+      right.classList.add('bdb-sidebar');
       if (!panel) {
         panel = element('section'); panel.id = 'bdb-panel'; panel.setAttribute('aria-label', '视频标记');
         const head = element('div', 'bdb-head');
@@ -359,6 +366,7 @@
       if (!enabled()) {
         if (running) cancel(false);
         closeDialog(); panel?.remove();
+        doc.querySelectorAll('.bdb-sidebar').forEach(e => e.classList.remove('bdb-sidebar'));
         doc.querySelectorAll('.bdb-exact, .bdb-menu-item').forEach(e => e.remove());
         doc.querySelectorAll('.bdb-time, .bdb-highlight').forEach(e => e.classList.remove('bdb-time', 'bdb-highlight'));
         return;
@@ -439,6 +447,7 @@
       page.clearInterval(timer); page.clearTimeout(scheduled);
       if (listener != null) storage.unlisten?.(listener);
       unbind.forEach(fn => fn()); closeDialog(); panel?.remove();
+      doc.querySelectorAll('.bdb-sidebar').forEach(e => e.classList.remove('bdb-sidebar'));
       doc.querySelectorAll('.bdb-exact, .bdb-menu-item, #bdb-style, #bdb-toast').forEach(e => e.remove());
       doc.querySelectorAll('.bdb-time, .bdb-highlight').forEach(e => e.classList.remove('bdb-time', 'bdb-highlight'));
     }
@@ -447,7 +456,10 @@
   }
 
   const CSS = `
-    #bdb-panel {box-sizing:border-box;background:var(--bg1,#fff);color:var(--text1,#18191c);border:1px solid var(--line_regular,#e3e5e7);border-radius:8px;margin-top:12px;padding:16px;width:100%;font:13px/1.6 system-ui,sans-serif;text-align:left}
+    aside.bdb-sidebar {align-self:stretch!important;height:auto!important;overflow:visible!important}
+    aside.bdb-sidebar>section.sticky:not(#bdb-panel) {position:static!important}
+    #bdb-panel {box-sizing:border-box;background:var(--bg1,#fff);color:var(--text1,#18191c);border:1px solid var(--line_regular,#e3e5e7);border-radius:8px;margin-top:12px;padding:16px;width:100%;font:13px/1.6 system-ui,sans-serif;text-align:left;position:sticky!important;top:80px;max-height:calc(100vh - 96px);overflow:auto;display:flex;flex-direction:column;z-index:2}
+    #bdb-panel>:not(.bdb-list) {flex-shrink:0}
     #bdb-panel *, .bdb-dialog * {box-sizing:border-box}
     .bdb-head {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
     #bdb-panel h2,.bdb-dialog h2 {font-size:16px;font-weight:600;margin:0}
@@ -460,7 +472,7 @@
     #bdb-panel .bdb-danger {color:#d64f62}
     .bdb-selectall {display:flex;align-items:center;gap:5px;cursor:pointer}
     #bdb-panel input {accent-color:#00aeec}
-    .bdb-list {max-height:360px;overflow-y:auto;overscroll-behavior:contain}
+    .bdb-list {max-height:360px;min-height:60px;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain}
     .bdb-row {display:flex;align-items:flex-start;gap:8px;padding:12px 0;border-top:1px solid var(--line_regular,#eee)}
     .bdb-row>input {margin-top:5px;flex:none}
     .bdb-row-body {min-width:0;flex:1}
@@ -481,7 +493,7 @@
     #bdb-panel [hidden] {display:none!important}
   `;
 
-  const exported = { VERSION, SCHEMA, formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify, createApp };
+  const exported = { VERSION, SCHEMA, parseTimestamp, formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify, createApp };
   if (typeof module === 'object' && module.exports && typeof window === 'undefined') {
     module.exports = exported;
     return;

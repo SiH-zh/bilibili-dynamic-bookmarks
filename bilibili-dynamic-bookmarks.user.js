@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩网站动态页：精准时间显示与视频书签跳转
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      1.2.1
+// @version      1.2.2
 // @author       SiH-zh
 // @homepageURL  https://github.com/SiH-zh/bilibili-dynamic-bookmarks
 // @supportURL   https://github.com/SiH-zh/bilibili-dynamic-bookmarks/issues
@@ -23,7 +23,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.2.1';
+  const VERSION = '1.2.2';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';
@@ -581,8 +581,8 @@
     #bdb-panel .bdb-collapse-toggle {white-space:nowrap}
     #bdb-panel *, .bdb-dialog * {box-sizing:border-box}
     .bdb-head {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-    #bdb-panel .bdb-title {display:flex;align-items:baseline;gap:6px;white-space:nowrap}
-    #bdb-panel .bdb-title .bdb-version {position:relative;top:3px;white-space:nowrap}
+    #bdb-panel .bdb-head>.bdb-title {display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+    #bdb-panel .bdb-head .bdb-version {white-space:nowrap}
     #bdb-panel h2,.bdb-dialog h2 {font-size:16px;font-weight:600;margin:0}
     .bdb-version,.bdb-muted {font-size:12px;color:var(--text3,#9499a0);overflow-wrap:anywhere}
     .bdb-actions {display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}

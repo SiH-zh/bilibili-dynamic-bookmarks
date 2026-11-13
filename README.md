@@ -2,7 +2,7 @@
 
 在[哔哩哔哩动态的视频投稿页](https://t.bilibili.com/?tab=video)补充秒级投稿时间，给视频留下阅读书签，刷新或重开后继续看；也可以直接选择最近十天内的日期和时间，返回附近视频。
 
-**当前版本：1.2.1** · **北京时间** · **MIT（宽松开源许可）**
+**当前版本：1.2.2** · **北京时间** · **MIT（宽松开源许可）**
 
 **[安装／更新脚本](https://raw.githubusercontent.com/SiH-zh/bilibili-dynamic-bookmarks/main/bilibili-dynamic-bookmarks.user.js)** · [打开动态视频页](https://t.bilibili.com/?tab=video) · [全部版本](https://github.com/SiH-zh/bilibili-dynamic-bookmarks/releases) · [反馈问题](https://github.com/SiH-zh/bilibili-dynamic-bookmarks/issues)
 
@@ -19,7 +19,7 @@
 - 在视频卡片右上角三点菜单中增加“标记此视频”，支持多个标记与重复标记去重。
 - 在热搜所在右侧列下方增加独立的“视频标记”模块，与热搜模块分开。
 - 保留热搜原生吸顶、样式及位置；“视频标记”在热搜下方独立吸顶，标记较多时可在列表内滚动。
-- 默认折叠为单行，左侧“视频标记”、右侧“展开”；展开和收起均采用蓝底白字按钮，版本号以小字紧贴标题右下侧，不另占一行。点击展开后可使用全部功能，右上角可“收起”。保持原位置吸顶，没有拖动功能。
+- 默认折叠为单行，左侧“视频标记”、右侧“展开”；展开和收起均采用蓝底白字按钮，版本号以小字放在标题右侧并按文字基线对齐，不另占一行。点击展开后可使用全部功能，右上角可“收起”。保持原位置吸顶，没有拖动功能。
 - 展示视频标题、作者、精确投稿时间，支持单条删除、勾选多条和全选删除。
 - 点击“回到视频”，多个标记时先选择目标；也可以直接点击某条标记的“返回视频”。
 - 不需要提前标记，直接在模块内选择最近10天内的日期、小时和分钟，点击“回到该时间”定位到附近视频。
@@ -113,6 +113,7 @@
 
 | 历史版本 | 主要变化 |
 | --- | --- |
+| [1.2.2](https://github.com/SiH-zh/bilibili-dynamic-bookmarks/releases/tag/v1.2.2) | 版本小字与模块标题基线对齐，限定标题栏样式范围 |
 | [1.2.1](https://github.com/SiH-zh/bilibili-dynamic-bookmarks/releases/tag/v1.2.1) | 展开与收起改为蓝底白字，版本号移至标题右下侧 |
 | [1.2.0](https://github.com/SiH-zh/bilibili-dynamic-bookmarks/releases/tag/v1.2.0) | 视频标记默认折叠，支持展开与收起，保持原有吸顶 |
 | [1.1.1](https://github.com/SiH-zh/bilibili-dynamic-bookmarks/releases/tag/v1.1.1) | 新中文名称、正式公开发布和自动更新 |

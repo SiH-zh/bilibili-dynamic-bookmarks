@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩动态：精确时间与视频标记
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      0.1.1
+// @version      1.0.0
 // @description  动态视频投稿时间精确到秒；多标记、批量删除、加载进度与返回附近视频。
 // @match        https://t.bilibili.com/*
 // @run-at       document-idle
@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '0.1.1';
+  const VERSION = '1.0.0';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';
@@ -37,7 +37,7 @@
     if (!validTime(ts)) return '时间数据不可用';
     // 固定东八区，不依赖操作系统的地区设置。
     const d = new Date((ts + 8 * 3600) * 1000);
-    return `${withYear ? `${d.getUTCFullYear()}年` : ''}${d.getUTCMonth() + 1}月${d.getUTCDate()}日${pad(d.getUTCHours())}点${pad(d.getUTCMinutes())}分${pad(d.getUTCSeconds())}秒`;
+    return `${withYear ? `${d.getUTCFullYear()}年` : ''}${d.getUTCMonth() + 1}月${d.getUTCDate()}日 ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
   }
 
   function recordMeta(item) {
@@ -109,6 +109,7 @@
     const doc = page.document;
     const options = { poll: 250, pageDelay: 1000, requestTimeout: 20000, maxRetries: 2, maxPages: 500, ...timing };
     let panel, statusNode, listNode, stopButton, countNode, deleteButton, allInput, observer;
+    let hotObserver = null, observedHot = null;
     let account = null, key = '', listener = null, timer = null, scheduled = null, token = 0;
     let running = false, disposed = false, data = { schemaVersion: SCHEMA, bookmarks: [] };
     let storageError = '', status = '从视频卡片右上角三点菜单添加标记。', overlay = null;
@@ -230,11 +231,33 @@
       stopButton.hidden = !running;
       setText(statusNode, status);
     }
+    function positionPanel() {
+      if (!panel?.isConnected) return;
+      const sticky = [...panel.parentElement.children].filter(e => e !== panel && page.getComputedStyle(e).position === 'sticky');
+      let offset = 80;
+      for (const sibling of sticky) {
+        const top = parseFloat(page.getComputedStyle(sibling).top);
+        if (Number.isFinite(top)) offset = Math.max(offset, top + sibling.getBoundingClientRect().height + 12);
+      }
+      offset = Math.ceil(offset);
+      // 只调整自身，保留网站热搜原有的位置、样式、吸顶与父子关系。
+      const topValue = `${offset}px`;
+      const maxHeight = `${Math.max(64, page.innerHeight - offset - 16)}px`;
+      if (panel.style.top !== topValue) panel.style.top = topValue;
+      if (panel.style.maxHeight !== maxHeight) panel.style.maxHeight = maxHeight;
+      const hot = sticky[0] || null;
+      if (hot !== observedHot) {
+        hotObserver?.disconnect(); observedHot = hot;
+        if (hot && typeof page.ResizeObserver === 'function') {
+          hotObserver = new page.ResizeObserver(positionPanel);
+          hotObserver.observe(hot);
+        }
+      }
+    }
     function mount() {
       if (panel?.isConnected) return;
       const right = doc.querySelector('aside.right');
       if (!right) return;
-      right.classList.add('bdb-sidebar');
       if (!panel) {
         panel = element('section'); panel.id = 'bdb-panel'; panel.setAttribute('aria-label', '视频标记');
         const head = element('div', 'bdb-head');
@@ -255,7 +278,7 @@
         panel.append(head, countNode, actions, manage, listNode, statusNode);
       }
       // 与热搜并列的独立模块，不向热搜组件内部插入内容。
-      right.append(panel); render();
+      right.append(panel); render(); positionPanel();
     }
     function closeDialog() { overlay?.remove(); overlay = null; }
     function dialog(title, text, choices = []) {
@@ -366,12 +389,13 @@
       if (!enabled()) {
         if (running) cancel(false);
         closeDialog(); panel?.remove();
-        doc.querySelectorAll('.bdb-sidebar').forEach(e => e.classList.remove('bdb-sidebar'));
+        hotObserver?.disconnect(); observedHot = null;
         doc.querySelectorAll('.bdb-exact, .bdb-menu-item').forEach(e => e.remove());
         doc.querySelectorAll('.bdb-time, .bdb-highlight').forEach(e => e.classList.remove('bdb-time', 'bdb-highlight'));
         return;
       }
       mount();
+      positionPanel();
       const vm = listVm();
       const uid = vm?.user?.mid != null ? String(vm.user.mid) : '';
       switchAccount(validId(uid) && uid !== '0' ? uid : '');
@@ -438,16 +462,17 @@
       observer.observe(doc.body, { childList: true, subtree: true, characterData: true });
       doc.addEventListener('keydown', onKey);
       unbind.push(() => doc.removeEventListener('keydown', onKey));
+      page.addEventListener('resize', positionPanel);
+      unbind.push(() => page.removeEventListener('resize', positionPanel));
       timer = page.setInterval(scan, 2000);
       scan();
       return api;
     }
     function dispose() {
-      disposed = true; cancel(false); observer?.disconnect();
+      disposed = true; cancel(false); observer?.disconnect(); hotObserver?.disconnect();
       page.clearInterval(timer); page.clearTimeout(scheduled);
       if (listener != null) storage.unlisten?.(listener);
       unbind.forEach(fn => fn()); closeDialog(); panel?.remove();
-      doc.querySelectorAll('.bdb-sidebar').forEach(e => e.classList.remove('bdb-sidebar'));
       doc.querySelectorAll('.bdb-exact, .bdb-menu-item, #bdb-style, #bdb-toast').forEach(e => e.remove());
       doc.querySelectorAll('.bdb-time, .bdb-highlight').forEach(e => e.classList.remove('bdb-time', 'bdb-highlight'));
     }
@@ -456,8 +481,6 @@
   }
 
   const CSS = `
-    aside.bdb-sidebar {align-self:stretch!important;height:auto!important;overflow:visible!important}
-    aside.bdb-sidebar>section.sticky:not(#bdb-panel) {position:static!important}
     #bdb-panel {box-sizing:border-box;background:var(--bg1,#fff);color:var(--text1,#18191c);border:1px solid var(--line_regular,#e3e5e7);border-radius:8px;margin-top:12px;padding:16px;width:100%;font:13px/1.6 system-ui,sans-serif;text-align:left;position:sticky!important;top:80px;max-height:calc(100vh - 96px);overflow:auto;display:flex;flex-direction:column;z-index:2}
     #bdb-panel>:not(.bdb-list) {flex-shrink:0}
     #bdb-panel *, .bdb-dialog * {box-sizing:border-box}

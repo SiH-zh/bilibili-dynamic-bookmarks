@@ -6,8 +6,8 @@ const make = (id = '1270165298557747203', ts = 1794561600) => ({ id, ts, title: 
 
 test('固定北京时间并保留秒数及跨年年份', () => {
   const ts = Date.UTC(2025, 11, 31, 16, 8, 35) / 1000;
-  assert.equal(formatTime(ts, true), '2026年1月1日00点08分35秒');
-  assert.equal(formatTime(ts), '1月1日00点08分35秒');
+  assert.equal(formatTime(ts, true), '2026年1月1日 00:08:35');
+  assert.equal(formatTime(ts), '1月1日 00:08:35');
   assert.equal(formatTime(undefined), '时间数据不可用');
 });
 test('读取当前动态时间，不误用转发原动态或模糊时间', () => {

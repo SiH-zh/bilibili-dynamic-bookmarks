@@ -164,11 +164,31 @@ test('实际网页的字符串时间戳可同时生成精确时间和三点菜�
   assert.equal(typeof f.app.getState().data.bookmarks[0].ts, 'number');
   assert.equal(f.app.getState().data.bookmarks[0].id, '1');
 });
-test('标记模块启用吸顶布局，退出视频页后恢复网站侧栏', t => {
+test('保留热搜原生吸顶与文档结构，标记模块在其下方独立吸顶', t => {
   const f = fixture(t);
-  assert.ok(f.doc.querySelector('aside.right').classList.contains('bdb-sidebar'));
+  const right = f.doc.querySelector('aside.right'), hot = f.doc.querySelector('#hot');
+  hot.className = 'sticky'; hot.style.position = 'sticky'; hot.style.top = '72px';
+  hot.getBoundingClientRect = () => ({ height: 300 });
+  const originalStyle = hot.getAttribute('style'), originalClasses = right.className;
+  f.app.scan();
   assert.equal(f.w.getComputedStyle(f.doc.querySelector('#bdb-panel')).position, 'sticky');
-  assert.equal(f.w.getComputedStyle(f.doc.querySelector('#bdb-panel')).top, '80px');
+  assert.equal(f.doc.querySelector('#bdb-panel').style.top, '384px');
+  assert.equal(f.w.getComputedStyle(hot).position, 'sticky');
+  assert.equal(hot.getAttribute('style'), originalStyle);
+  assert.equal(hot.parentElement, right);
+  assert.equal(right.className, originalClasses);
+  hot.getBoundingClientRect = () => ({ height: 350 });
+  f.w.dispatchEvent(new f.w.Event('resize'));
+  assert.equal(f.doc.querySelector('#bdb-panel').style.top, '434px');
   f.w.history.pushState({}, '', '/?tab=all'); f.app.scan();
-  assert.equal(f.doc.querySelector('.bdb-sidebar'), null);
+  assert.equal(hot.getAttribute('style'), originalStyle);
+  assert.equal(right.className, originalClasses);
+});
+test('卡片、标记列表与选择窗口统一使用简洁的时分秒格式', t => {
+  const f = fixture(t);
+  assert.match(f.doc.querySelector('.bdb-exact').textContent, /\d+月\d+日 \d{2}:\d{2}:\d{2}/);
+  f.doc.querySelectorAll('.bdb-menu-item').forEach(b => b.click());
+  assert.match(f.doc.querySelector('.bdb-row time').textContent, /年\d+月\d+日 \d{2}:\d{2}:\d{2}/);
+  f.click('回到视频');
+  assert.match(f.doc.querySelector('.bdb-choice').textContent, /\d+月\d+日 \d{2}:\d{2}:\d{2}/);
 });

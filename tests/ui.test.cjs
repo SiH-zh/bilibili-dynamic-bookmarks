@@ -24,7 +24,12 @@ function fixture(t, metas = [meta('1', 1100), meta('2', 900)], timing = {}) {
   metas.forEach(appendCard);
   const app = createApp(w, storage, { poll: 2, pageDelay: 0, requestTimeout: 30, maxRetries: 0, maxPages: 4, ...timing }).start();
   t.after(() => { app.dispose(); dom.window.close(); });
-  const click = text => { const b = [...w.document.querySelectorAll('button')].find(e => e.textContent === text); assert.ok(b, `应存在按钮：${text}`); b.click(); };
+  const click = text => {
+    const b = [...w.document.querySelectorAll('button')].find(e => e.textContent === text);
+    assert.ok(b, `应存在按钮：${text}`);
+    if (b.closest('#bdb-content')?.hidden) w.document.querySelector('.bdb-collapse-toggle').click();
+    b.click();
+  };
   return { w, doc: w.document, store, storage, app, vm, appendCard, click };
 }
 
@@ -42,6 +47,7 @@ test('独立侧栏模块、精确时间与原生菜单标记入口', t => {
 });
 test('全选、取消全选与多选删除', t => {
   const f = fixture(t);
+  f.click('展开的悬浮模块');
   f.doc.querySelectorAll('.bdb-menu-item').forEach(b => b.click());
   const all = f.doc.querySelector('.bdb-selectall input'); all.click();
   assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 2);
@@ -260,4 +266,56 @@ test('新增日期限制不影响旧标记返回十天以前的已加载视频',
   const old = Math.floor(Date.now() / 1000) - LOOKBACK - 86400;
   const f = fixture(t, [meta('1', old)]);
   await f.app.restore(meta('1', old)); assert.match(f.app.getState().status, /已回到标记视频/);
+});
+test('默认收起为单行标题栏，保留吸顶且没有拖动入口', t => {
+  const f = fixture(t), panel = f.doc.querySelector('#bdb-panel');
+  const content = f.doc.querySelector('#bdb-content'), toggle = panel.querySelector('.bdb-collapse-toggle');
+  assert.equal(panel.querySelector('h2').textContent, '视频标记');
+  assert.equal(toggle.textContent, '展开的悬浮模块');
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(toggle.getAttribute('aria-controls'), content.id);
+  assert.equal(content.hidden, true);
+  assert.equal(f.w.getComputedStyle(content).display, 'none');
+  assert.equal(f.w.getComputedStyle(panel).position, 'sticky');
+  assert.equal(panel.draggable, false);
+  assert.equal(f.store.size, 0);
+});
+test('展开与收起保留书签、选择时间及勾选状态，不因扫描或新增标记自动展开', t => {
+  const f = fixture(t), content = f.doc.querySelector('#bdb-content');
+  f.click('展开的悬浮模块');
+  assert.equal(content.hidden, false);
+  assert.equal(f.doc.querySelector('.bdb-collapse-toggle').getAttribute('aria-expanded'), 'true');
+  f.click('标记此视频');
+  const input = f.doc.querySelector('#bdb-target-time'), chosen = pickerValue(Math.floor(Date.now() / 1000) - 120);
+  input.value = chosen;
+  f.doc.querySelector('.bdb-row input').click();
+  const saved = structuredClone(f.storage.get('bdb.v1.account.123'));
+  f.click('收起'); f.app.scan();
+  assert.equal(content.hidden, true);
+  assert.deepEqual(f.storage.get('bdb.v1.account.123'), saved);
+  f.doc.querySelectorAll('.bdb-menu-item')[1].click();
+  assert.equal(content.hidden, true);
+  f.click('展开的悬浮模块');
+  assert.equal(input.value, chosen);
+  assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 1);
+  assert.equal(f.app.getState().data.bookmarks.length, 2);
+});
+test('重新创建页面实例默认折叠，已有书签保持不变', t => {
+  const f = fixture(t); f.click('展开的悬浮模块'); f.click('标记此视频');
+  f.app.dispose();
+  const next = createApp(f.w, f.storage).start(); t.after(() => next.dispose());
+  assert.equal(f.doc.querySelector('#bdb-content').hidden, true);
+  assert.equal(f.doc.querySelector('.bdb-collapse-toggle').textContent, '展开的悬浮模块');
+  assert.equal(next.getState().data.bookmarks[0].id, '1');
+});
+test('收起不取消正在进行的定位，重新展开仍可停止', async t => {
+  const f = fixture(t, [meta('1', 1100)]);
+  f.click('展开的悬浮模块'); f.vm.loadmore = () => { f.vm.status = 'LOADING'; };
+  const job = f.app.restore(meta('9', 1000));
+  f.click('收起');
+  assert.equal(f.app.getState().running, true);
+  assert.equal(f.doc.querySelector('#bdb-content').hidden, true);
+  f.click('展开的悬浮模块'); f.click('停止定位'); await job;
+  assert.equal(f.app.getState().running, false);
+  assert.match(f.app.getState().status, /已停止/);
 });

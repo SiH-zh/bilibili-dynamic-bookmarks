@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="650" viewBox="0 0 1080 650" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="740" viewBox="0 0 1080 740" role="img" aria-labelledby="title desc">
   <title id="title">精准时间显示与视频书签跳转功能示意</title>
-  <desc id="desc">显示精确时间和标记菜单的视频卡片，以及保留的原生热搜和新增的视频标记模块。全部内容为演示数据。</desc>
+  <desc id="desc">显示精确时间和标记菜单的视频卡片，以及保留的原生热搜、默认折叠的视频标记条和点击后的展开示意。全部内容为演示数据。</desc>
   <style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#24292f}.small{font-size:13px;fill:#64748b}.body{font-size:15px}.heading{font-size:18px;font-weight:600}.blue{fill:#009ed7}.white{fill:white}</style>
-  <rect width="1080" height="650" rx="14" fill="#f1f6f9"/>
+  <rect width="1080" height="740" rx="14" fill="#f1f6f9"/>
   <text x="32" y="45" font-size="26" font-weight="600">精准时间显示 · 视频书签跳转</text>
   <text x="32" y="73" class="small">动态视频投稿页增强 · 北京时间 · 界面示意（演示数据）</text>
   <rect x="28" y="99" width="638" height="243" rx="10" fill="white" stroke="#dae4ea"/>
@@ -30,8 +30,14 @@
   <text x="707" y="132" class="heading">哔哩哔哩热搜</text>
   <text x="707" y="162" class="small">1　热门话题示例</text>
   <text x="707" y="194" class="small blue">保留原生模块和原有吸顶</text>
+  <rect x="686" y="232" width="365" height="48" rx="10" fill="white" stroke="#b9deee"/>
+  <text x="707" y="262" class="heading">视频标记</text>
+  <text x="925" y="261" class="small blue">展开的悬浮模块</text>
+  <text x="707" y="305" class="small">默认单行 · 点击后展开 ↓</text>
+  <g transform="translate(0,86)">
   <rect x="686" y="232" width="365" height="382" rx="10" fill="white" stroke="#b9deee"/>
   <text x="707" y="266" class="heading">视频标记</text>
+  <text x="1000" y="266" class="small blue">收起</text>
   <text x="707" y="293" class="small">共1个书签 · 独立吸顶</text>
   <rect x="707" y="310" width="99" height="31" rx="5" fill="#00aeec"/>
   <text x="726" y="331" class="body white">回到视频</text>
@@ -45,5 +51,6 @@
   <text x="707" y="529" class="body">□　示例视频书签</text>
   <text x="729" y="553" class="small">11月13日 20:08:35　返回视频　删除</text>
   <text x="707" y="588" class="small blue">正在加载视频……已加载至 19:55:08</text>
-  <text x="32" y="626" class="small">本地保存书签，不改变网站收藏与点赞。示意内容全部使用演示数据。</text>
+  </g>
+  <text x="32" y="722" class="small">本地保存书签，不改变网站收藏与点赞。示意内容全部使用演示数据。</text>
 </svg>

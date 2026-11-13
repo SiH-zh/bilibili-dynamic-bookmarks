@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩网站动态页：精准时间显示与视频书签跳转
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      1.1.1
+// @version      1.2.0
 // @author       SiH-zh
 // @homepageURL  https://github.com/SiH-zh/bilibili-dynamic-bookmarks
 // @supportURL   https://github.com/SiH-zh/bilibili-dynamic-bookmarks/issues
@@ -23,7 +23,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.1.1';
+  const VERSION = '1.2.0';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';
@@ -137,6 +137,8 @@
     const options = { poll: 250, pageDelay: 1000, requestTimeout: 20000, maxRetries: 2, maxPages: 500,
       timeMaxPages: 100, timeMaxItems: 4000, timeMaxDuration: 120000, ...timing };
     let panel, statusNode, listNode, stopButton, countNode, deleteButton, allInput, observer;
+    let panelContent, collapseButton;
+    let expanded = false;
     let hotObserver = null, observedHot = null;
     let timeInput, timeButton;
     let account = null, key = '', listener = null, timer = null, scheduled = null, token = 0;
@@ -241,6 +243,7 @@
     }
     function render() {
       if (!panel) return;
+      syncExpansion();
       countNode.textContent = `共 ${data.bookmarks.length} 个标记`;
       listNode.replaceChildren();
       if (!data.bookmarks.length) listNode.append(element('p', 'bdb-muted', '暂无标记。打开视频卡片的三点菜单即可添加。'));
@@ -260,6 +263,17 @@
       stopButton.hidden = !running;
       if (timeButton) timeButton.disabled = running || !account;
       setText(statusNode, status);
+    }
+    function syncExpansion() {
+      if (!panelContent || !collapseButton) return;
+      panelContent.hidden = !expanded;
+      panel.classList.toggle('bdb-collapsed', !expanded);
+      collapseButton.setAttribute('aria-expanded', String(expanded));
+      setText(collapseButton, expanded ? '收起' : '展开的悬浮模块');
+    }
+    function toggleExpansion() {
+      expanded = !expanded;
+      syncExpansion(); positionPanel();
     }
     function updatePickerBounds() {
       if (!timeInput) return;
@@ -302,7 +316,11 @@
       if (!panel) {
         panel = element('section'); panel.id = 'bdb-panel'; panel.setAttribute('aria-label', '视频标记');
         const head = element('div', 'bdb-head');
-        head.append(element('h2', '', '视频标记'), element('span', 'bdb-version', `版本 ${VERSION}`));
+        collapseButton = button('展开的悬浮模块', toggleExpansion, 'bdb-collapse-toggle');
+        collapseButton.setAttribute('aria-controls', 'bdb-content');
+        head.append(element('h2', '', '视频标记'), collapseButton);
+        panelContent = element('div'); panelContent.id = 'bdb-content';
+        const version = element('div', 'bdb-version', `版本 ${VERSION}`);
         countNode = element('div', 'bdb-muted');
         const actions = element('div', 'bdb-actions');
         actions.append(button('回到视频', chooseTarget, 'bdb-primary'));
@@ -326,7 +344,8 @@
         deleteButton = button('删除所选', () => deleteIds(new Set(selected)), 'bdb-danger'); manage.append(label, deleteButton);
         listNode = element('div', 'bdb-list');
         statusNode = element('div', 'bdb-status'); statusNode.setAttribute('role', 'status'); statusNode.setAttribute('aria-live', 'polite');
-        panel.append(head, countNode, actions, timeForm, manage, listNode, statusNode);
+        panelContent.append(version, countNode, actions, timeForm, manage, listNode, statusNode);
+        panel.append(head, panelContent);
       }
       // 与热搜并列的独立模块，不向热搜组件内部插入内容。
       right.append(panel); render(); positionPanel();
@@ -458,6 +477,7 @@
       if (disposed) return;
       if (!enabled()) {
         if (running) cancel(false);
+        expanded = false; syncExpansion();
         closeDialog(); panel?.remove();
         hotObserver?.disconnect(); observedHot = null;
         doc.querySelectorAll('.bdb-exact, .bdb-menu-item').forEach(e => e.remove());
@@ -552,8 +572,12 @@
   }
 
   const CSS = `
-    #bdb-panel {box-sizing:border-box;background:var(--bg1,#fff);color:var(--text1,#18191c);border:1px solid var(--line_regular,#e3e5e7);border-radius:8px;margin-top:12px;padding:16px;width:100%;font:13px/1.6 system-ui,sans-serif;text-align:left;position:sticky!important;top:80px;max-height:calc(100vh - 96px);overflow:auto;display:flex;flex-direction:column;z-index:2}
-    #bdb-panel>:not(.bdb-list) {flex-shrink:0}
+    #bdb-panel {box-sizing:border-box;background:var(--bg1,#fff);color:var(--text1,#18191c);border:1px solid var(--line_regular,#e3e5e7);border-radius:8px;margin-top:12px;padding:16px;width:100%;font:13px/1.6 system-ui,sans-serif;text-align:left;position:sticky!important;top:80px;max-height:calc(100vh - 96px);overflow:hidden;display:flex;flex-direction:column;z-index:2}
+    #bdb-panel>.bdb-head,#bdb-content>:not(.bdb-list) {flex-shrink:0}
+    #bdb-content {min-height:0;flex:1 1 auto;overflow:auto;display:flex;flex-direction:column}
+    #bdb-panel.bdb-collapsed {padding:10px 14px}
+    #bdb-panel.bdb-collapsed>.bdb-head {margin-bottom:0}
+    #bdb-panel .bdb-collapse-toggle {border:0;background:transparent;padding:2px 0;white-space:nowrap;font-size:12px}
     #bdb-panel *, .bdb-dialog * {box-sizing:border-box}
     .bdb-head {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
     #bdb-panel h2,.bdb-dialog h2 {font-size:16px;font-weight:600;margin:0}

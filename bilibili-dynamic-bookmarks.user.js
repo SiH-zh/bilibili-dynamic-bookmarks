@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩网站动态页：精准时间显示与视频书签跳转
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      1.2.0
+// @version      1.2.1
 // @author       SiH-zh
 // @homepageURL  https://github.com/SiH-zh/bilibili-dynamic-bookmarks
 // @supportURL   https://github.com/SiH-zh/bilibili-dynamic-bookmarks/issues
@@ -23,7 +23,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.2.0';
+  const VERSION = '1.2.1';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';
@@ -269,7 +269,7 @@
       panelContent.hidden = !expanded;
       panel.classList.toggle('bdb-collapsed', !expanded);
       collapseButton.setAttribute('aria-expanded', String(expanded));
-      setText(collapseButton, expanded ? '收起' : '展开的悬浮模块');
+      setText(collapseButton, expanded ? '收起' : '展开');
     }
     function toggleExpansion() {
       expanded = !expanded;
@@ -316,11 +316,12 @@
       if (!panel) {
         panel = element('section'); panel.id = 'bdb-panel'; panel.setAttribute('aria-label', '视频标记');
         const head = element('div', 'bdb-head');
-        collapseButton = button('展开的悬浮模块', toggleExpansion, 'bdb-collapse-toggle');
+        collapseButton = button('展开', toggleExpansion, 'bdb-collapse-toggle bdb-primary');
         collapseButton.setAttribute('aria-controls', 'bdb-content');
-        head.append(element('h2', '', '视频标记'), collapseButton);
+        const title = element('div', 'bdb-title');
+        title.append(element('h2', '', '视频标记'), element('span', 'bdb-version', `版本 ${VERSION}`));
+        head.append(title, collapseButton);
         panelContent = element('div'); panelContent.id = 'bdb-content';
-        const version = element('div', 'bdb-version', `版本 ${VERSION}`);
         countNode = element('div', 'bdb-muted');
         const actions = element('div', 'bdb-actions');
         actions.append(button('回到视频', chooseTarget, 'bdb-primary'));
@@ -344,7 +345,7 @@
         deleteButton = button('删除所选', () => deleteIds(new Set(selected)), 'bdb-danger'); manage.append(label, deleteButton);
         listNode = element('div', 'bdb-list');
         statusNode = element('div', 'bdb-status'); statusNode.setAttribute('role', 'status'); statusNode.setAttribute('aria-live', 'polite');
-        panelContent.append(version, countNode, actions, timeForm, manage, listNode, statusNode);
+        panelContent.append(countNode, actions, timeForm, manage, listNode, statusNode);
         panel.append(head, panelContent);
       }
       // 与热搜并列的独立模块，不向热搜组件内部插入内容。
@@ -577,9 +578,11 @@
     #bdb-content {min-height:0;flex:1 1 auto;overflow:auto;display:flex;flex-direction:column}
     #bdb-panel.bdb-collapsed {padding:10px 14px}
     #bdb-panel.bdb-collapsed>.bdb-head {margin-bottom:0}
-    #bdb-panel .bdb-collapse-toggle {border:0;background:transparent;padding:2px 0;white-space:nowrap;font-size:12px}
+    #bdb-panel .bdb-collapse-toggle {white-space:nowrap}
     #bdb-panel *, .bdb-dialog * {box-sizing:border-box}
     .bdb-head {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+    #bdb-panel .bdb-title {display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+    #bdb-panel .bdb-title .bdb-version {position:relative;top:3px;white-space:nowrap}
     #bdb-panel h2,.bdb-dialog h2 {font-size:16px;font-weight:600;margin:0}
     .bdb-version,.bdb-muted {font-size:12px;color:var(--text3,#9499a0);overflow-wrap:anywhere}
     .bdb-actions {display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}

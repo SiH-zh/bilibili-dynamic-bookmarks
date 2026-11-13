@@ -32,12 +32,16 @@
   <text x="707" y="194" class="small blue">保留原生模块和原有吸顶</text>
   <rect x="686" y="232" width="365" height="48" rx="10" fill="white" stroke="#b9deee"/>
   <text x="707" y="262" class="heading">视频标记</text>
-  <text x="925" y="261" class="small blue">展开的悬浮模块</text>
+  <text x="788" y="265" class="small">版本 1.2.1</text>
+  <rect x="975" y="240" width="54" height="31" rx="5" fill="#00aeec"/>
+  <text x="987" y="261" class="body white">展开</text>
   <text x="707" y="305" class="small">默认单行 · 点击后展开 ↓</text>
   <g transform="translate(0,86)">
   <rect x="686" y="232" width="365" height="382" rx="10" fill="white" stroke="#b9deee"/>
   <text x="707" y="266" class="heading">视频标记</text>
-  <text x="1000" y="266" class="small blue">收起</text>
+  <text x="788" y="269" class="small">版本 1.2.1</text>
+  <rect x="975" y="243" width="54" height="31" rx="5" fill="#00aeec"/>
+  <text x="987" y="264" class="body white">收起</text>
   <text x="707" y="293" class="small">共1个书签 · 独立吸顶</text>
   <rect x="707" y="310" width="99" height="31" rx="5" fill="#00aeec"/>
   <text x="726" y="331" class="body white">回到视频</text>

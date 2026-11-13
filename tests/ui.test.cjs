@@ -47,7 +47,7 @@ test('独立侧栏模块、精确时间与原生菜单标记入口', t => {
 });
 test('全选、取消全选与多选删除', t => {
   const f = fixture(t);
-  f.click('展开的悬浮模块');
+  f.click('展开');
   f.doc.querySelectorAll('.bdb-menu-item').forEach(b => b.click());
   const all = f.doc.querySelector('.bdb-selectall input'); all.click();
   assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 2);
@@ -271,7 +271,11 @@ test('默认收起为单行标题栏，保留吸顶且没有拖动入口', t => 
   const f = fixture(t), panel = f.doc.querySelector('#bdb-panel');
   const content = f.doc.querySelector('#bdb-content'), toggle = panel.querySelector('.bdb-collapse-toggle');
   assert.equal(panel.querySelector('h2').textContent, '视频标记');
-  assert.equal(toggle.textContent, '展开的悬浮模块');
+  assert.equal(toggle.textContent, '展开');
+  assert.equal(f.w.getComputedStyle(toggle).backgroundColor, f.w.getComputedStyle(panel.querySelector('.bdb-actions .bdb-primary')).backgroundColor);
+  assert.equal(f.w.getComputedStyle(toggle).color, 'rgb(255, 255, 255)');
+  assert.equal(panel.querySelector('.bdb-version').parentElement, panel.querySelector('h2').parentElement);
+  assert.equal(content.querySelector('.bdb-version'), null);
   assert.equal(toggle.getAttribute('aria-expanded'), 'false');
   assert.equal(toggle.getAttribute('aria-controls'), content.id);
   assert.equal(content.hidden, true);
@@ -282,7 +286,7 @@ test('默认收起为单行标题栏，保留吸顶且没有拖动入口', t => 
 });
 test('展开与收起保留书签、选择时间及勾选状态，不因扫描或新增标记自动展开', t => {
   const f = fixture(t), content = f.doc.querySelector('#bdb-content');
-  f.click('展开的悬浮模块');
+  f.click('展开');
   assert.equal(content.hidden, false);
   assert.equal(f.doc.querySelector('.bdb-collapse-toggle').getAttribute('aria-expanded'), 'true');
   f.click('标记此视频');
@@ -295,27 +299,27 @@ test('展开与收起保留书签、选择时间及勾选状态，不因扫描�
   assert.deepEqual(f.storage.get('bdb.v1.account.123'), saved);
   f.doc.querySelectorAll('.bdb-menu-item')[1].click();
   assert.equal(content.hidden, true);
-  f.click('展开的悬浮模块');
+  f.click('展开');
   assert.equal(input.value, chosen);
   assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 1);
   assert.equal(f.app.getState().data.bookmarks.length, 2);
 });
 test('重新创建页面实例默认折叠，已有书签保持不变', t => {
-  const f = fixture(t); f.click('展开的悬浮模块'); f.click('标记此视频');
+  const f = fixture(t); f.click('展开'); f.click('标记此视频');
   f.app.dispose();
   const next = createApp(f.w, f.storage).start(); t.after(() => next.dispose());
   assert.equal(f.doc.querySelector('#bdb-content').hidden, true);
-  assert.equal(f.doc.querySelector('.bdb-collapse-toggle').textContent, '展开的悬浮模块');
+  assert.equal(f.doc.querySelector('.bdb-collapse-toggle').textContent, '展开');
   assert.equal(next.getState().data.bookmarks[0].id, '1');
 });
 test('收起不取消正在进行的定位，重新展开仍可停止', async t => {
   const f = fixture(t, [meta('1', 1100)]);
-  f.click('展开的悬浮模块'); f.vm.loadmore = () => { f.vm.status = 'LOADING'; };
+  f.click('展开'); f.vm.loadmore = () => { f.vm.status = 'LOADING'; };
   const job = f.app.restore(meta('9', 1000));
   f.click('收起');
   assert.equal(f.app.getState().running, true);
   assert.equal(f.doc.querySelector('#bdb-content').hidden, true);
-  f.click('展开的悬浮模块'); f.click('停止定位'); await job;
+  f.click('展开'); f.click('停止定位'); await job;
   assert.equal(f.app.getState().running, false);
   assert.match(f.app.getState().status, /已停止/);
 });

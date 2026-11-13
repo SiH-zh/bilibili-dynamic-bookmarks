@@ -1,6 +1,6 @@
 {
   "name": "bilibili-dynamic-bookmarks",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "哔哩哔哩动态精确时间与视频标记油猴脚本",
   "license": "MIT",

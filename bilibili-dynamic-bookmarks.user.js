@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         哔哩哔哩动态：精确时间与视频标记
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      1.0.0
-// @description  动态视频投稿时间精确到秒；多标记、批量删除、加载进度与返回附近视频。
+// @version      1.1.0
+// @description  动态时间精确到秒；多标记、批量删除、返回标记，以及按最近10天内的日期时间定位视频。
 // @match        https://t.bilibili.com/*
 // @run-at       document-idle
 // @noframes
@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';
@@ -26,6 +26,26 @@
   const pad = n => String(n).padStart(2, '0');
   const validTime = n => Number.isSafeInteger(n) && n > 0 && n < 100000000000;
   const validId = s => typeof s === 'string' && /^\d{1,30}$/.test(s);
+  const LOOKBACK = 10 * 24 * 3600;
+
+  function pickerValue(ts) {
+    return new Date((ts + 8 * 3600) * 1000).toISOString().slice(0, 16);
+  }
+
+  function pickerBounds(now = Math.floor(Date.now() / 1000)) {
+    return { min: pickerValue(Math.ceil((now - LOOKBACK) / 60) * 60), max: pickerValue(Math.floor(now / 60) * 60) };
+  }
+
+  function parsePicker(value, now = Math.floor(Date.now() / 1000)) {
+    const parts = typeof value === 'string' && value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    if (!parts) throw new Error('请选择有效的日期和时间。');
+    const [, y, m, d, h, minute] = parts.map(Number);
+    const ts = Date.UTC(y, m - 1, d, h, minute) / 1000 - 8 * 3600;
+    if (!validTime(ts) || pickerValue(ts) !== value) throw new Error('请选择有效的日期和时间。');
+    if (ts > now) throw new Error('不能选择未来时间。');
+    if (ts < now - LOOKBACK) throw new Error('只能选择最近10天内的时间。');
+    return ts;
+  }
 
   function parseTimestamp(value) {
     // 网页组件可能将接口的秒级时间戳转成十进制字符串；只转换明确的整数。
@@ -94,11 +114,13 @@
   }
 
   function classify(records, target, exhausted = false) {
-    const exact = records.find(r => r.id === target.id);
+    const exact = records.find(r => target.mode === 'time' ? r.ts === target.ts : r.id === target.id);
     if (exact) return { kind: 'exact', record: exact };
     if (!records.length) return { kind: 'incomplete' };
     const oldest = Math.min(...records.map(r => r.ts));
     const newest = Math.max(...records.map(r => r.ts));
+    // 所选时间比本次列表最新视频还新时，最新的可用视频就是附近候选。
+    if (target.mode === 'time' && target.ts >= newest) return { kind: 'time-ready', record: nearest(records, target) };
     // 必须真正覆盖目标时间两侧；时间相同也必须检查标识，而非直接认定同一视频。
     if (records.at(-1).ts < target.ts && newest >= target.ts) return { kind: 'covered', record: nearest(records, target) };
     if (exhausted && oldest <= target.ts) return { kind: 'end', record: nearest(records, target) };
@@ -107,9 +129,11 @@
 
   function createApp(page, storage, timing = {}) {
     const doc = page.document;
-    const options = { poll: 250, pageDelay: 1000, requestTimeout: 20000, maxRetries: 2, maxPages: 500, ...timing };
+    const options = { poll: 250, pageDelay: 1000, requestTimeout: 20000, maxRetries: 2, maxPages: 500,
+      timeMaxPages: 100, timeMaxItems: 4000, timeMaxDuration: 120000, ...timing };
     let panel, statusNode, listNode, stopButton, countNode, deleteButton, allInput, observer;
     let hotObserver = null, observedHot = null;
+    let timeInput, timeButton;
     let account = null, key = '', listener = null, timer = null, scheduled = null, token = 0;
     let running = false, disposed = false, data = { schemaVersion: SCHEMA, bookmarks: [] };
     let storageError = '', status = '从视频卡片右上角三点菜单添加标记。', overlay = null;
@@ -229,7 +253,19 @@
       }
       updateSelection();
       stopButton.hidden = !running;
+      if (timeButton) timeButton.disabled = running || !account;
       setText(statusNode, status);
+    }
+    function updatePickerBounds() {
+      if (!timeInput) return;
+      const bounds = pickerBounds();
+      timeInput.min = bounds.min; timeInput.max = bounds.max;
+    }
+    async function restoreAtTime(value = timeInput?.value) {
+      try {
+        const ts = parsePicker(value);
+        return await restore({ mode: 'time', ts, title: `${formatTime(ts, true)} 附近的视频` });
+      } catch (e) { report(e.message); toast(e.message); }
     }
     function positionPanel() {
       if (!panel?.isConnected) return;
@@ -266,6 +302,16 @@
         const actions = element('div', 'bdb-actions');
         actions.append(button('回到视频', chooseTarget, 'bdb-primary'));
         stopButton = button('停止定位', () => cancel()); stopButton.hidden = true; actions.append(stopButton);
+        const timeForm = element('form', 'bdb-time-form'); timeForm.noValidate = true;
+        const timeLabel = element('label', '', '选择时间（北京时间）'); timeLabel.htmlFor = 'bdb-target-time';
+        timeInput = element('input'); timeInput.id = 'bdb-target-time'; timeInput.type = 'datetime-local'; timeInput.step = '60';
+        timeInput.setAttribute('aria-label', '目标日期和时间（北京时间）');
+        timeInput.value = pickerValue(Math.floor(Date.now() / 60000) * 60);
+        timeInput.addEventListener('focus', updatePickerBounds);
+        timeButton = element('button', 'bdb-primary', '回到该时间'); timeButton.type = 'submit';
+        timeForm.addEventListener('submit', e => { e.preventDefault(); void restoreAtTime(); });
+        timeForm.append(timeLabel, timeInput, element('div', 'bdb-muted', '仅最近10天，定位到投稿时间最接近的视频。'), timeButton);
+        updatePickerBounds();
         const manage = element('div', 'bdb-actions'); const label = element('label', 'bdb-selectall');
         allInput = element('input'); allInput.type = 'checkbox';
         allInput.addEventListener('change', () => {
@@ -275,7 +321,7 @@
         deleteButton = button('删除所选', () => deleteIds(new Set(selected)), 'bdb-danger'); manage.append(label, deleteButton);
         listNode = element('div', 'bdb-list');
         statusNode = element('div', 'bdb-status'); statusNode.setAttribute('role', 'status'); statusNode.setAttribute('aria-live', 'polite');
-        panel.append(head, countNode, actions, manage, listNode, statusNode);
+        panel.append(head, countNode, actions, timeForm, manage, listNode, statusNode);
       }
       // 与热搜并列的独立模块，不向热搜组件内部插入内容。
       right.append(panel); render(); positionPanel();
@@ -302,6 +348,7 @@
     function cancel(notify = true) {
       token++; running = false;
       if (stopButton) stopButton.hidden = true;
+      if (timeButton) timeButton.disabled = !account;
       if (notify) report('已停止定位，标记仍然保留。');
     }
     function focusCard(meta) {
@@ -318,6 +365,12 @@
       if (!account) return toast('请先登录，等待账号数据加载。');
       if (running) return toast('正在定位，请先停止当前定位。');
       if (!enabled()) return;
+      const timeMode = target.mode === 'time';
+      const searchStarted = Date.now();
+      const now = Math.floor(searchStarted / 1000), cutoff = now - LOOKBACK;
+      if (timeMode && (!validTime(target.ts) || target.ts < cutoff || target.ts > now)) {
+        report('只能选择最近10天内且不晚于当前时刻的时间。'); return;
+      }
       running = true; const mine = ++token, uid = account;
       const live = () => !disposed && running && mine === token && enabled() && account === uid;
       let pages = 0, crossed = false, retries = 0;
@@ -325,34 +378,45 @@
       report(`正在加载视频……\n目标：${target.title}`);
       try {
         while (live()) {
+          if (timeMode && Date.now() - searchStarted > options.timeMaxDuration) throw new Error('本次按时间查找已达到2分钟上限，已停止追加加载。可再次操作继续从已加载列表查找。');
           scan();
           const vm = listVm();
           if (!vm) throw new Error('未读取到网页动态数据，可能是网站结构发生变化。请刷新后重试。');
           if (vm.user?.mid && String(vm.user.mid) !== uid) throw new Error('登录账号发生变化，已停止定位。');
-          const current = records(), end = ['NO_MORE', 'EMPTY'].includes(vm.status);
+          const allRecords = records();
+          const current = timeMode ? allRecords.filter(r => r.ts >= cutoff && r.ts <= now) : allRecords;
+          const end = ['NO_MORE', 'EMPTY'].includes(vm.status);
           const decision = classify(current, target, end);
           if (decision.kind === 'exact') {
             if (!focusCard(decision.record)) {
               throw new Error('目标动态已加载，但视频卡片被过滤、折叠或不可见。请检查其他脚本及动态过滤设置。');
             }
-            report(`已回到标记视频：${target.title}`); return;
+            report(timeMode ? `已定位到所选时间的视频：${formatTime(decision.record.ts, true)}\n${decision.record.title}` : `已回到标记视频：${target.title}`); return;
           }
           const oldest = current.length ? Math.min(...current.map(r => r.ts)) : null;
+          const reachedCutoff = timeMode && allRecords.length > 0 && allRecords.at(-1).ts <= cutoff;
           report(`正在加载视频……已追加 ${pages} 批\n${oldest ? `已加载至：${formatTime(oldest, true)}` : '正在等待视频时间数据'}\n目标：${formatTime(target.ts, true)}`);
           // 覆盖时间两侧后再取一批，减少边界相同秒数、少量乱序带来的误判。
-          if ((decision.kind === 'covered' && (crossed || end)) || decision.kind === 'end') {
+          if ((decision.kind === 'covered' && (crossed || end || reachedCutoff)) || decision.kind === 'end' || decision.kind === 'time-ready' || (timeMode && (end || reachedCutoff))) {
             const cardMap = new Map([...doc.querySelectorAll(CARD)].map(c => [c.getAttribute('data-did') || c.dataset.bdbId, c]));
             const visible = current.filter(r => {
               const c = cardMap.get(r.id); return c?.querySelector('.bili-dyn-card-video') && c.getClientRects().length;
             });
             const candidate = nearest(visible, target);
-            if (!candidate || !focusCard(candidate)) throw new Error('目标附近没有可见的视频卡片，可能被页面过滤。');
-            report(`未找到原动态，已回到附近视频：${candidate.title}`);
-            dialog('未找到原标记的视频', `该视频可能已失效、被删除，或已从当前动态列表消失。已定位到当前已加载范围内投稿时间最接近的可见视频「${candidate.title}」（${formatTime(candidate.ts, true)}），请自行确认。原标记仍然保留。`);
+            if (!candidate || !focusCard(candidate)) throw new Error(timeMode ? '最近10天内暂时没有可见的视频卡片，无法定位。' : '目标附近没有可见的视频卡片，可能被页面过滤。');
+            if (timeMode) {
+              report(`已定位到所选时间附近：${formatTime(candidate.ts, true)}\n${candidate.title}\n与所选时间相差约 ${Math.ceil(Math.abs(candidate.ts - target.ts) / 60)} 分钟。`);
+            } else {
+              report(`未找到原动态，已回到附近视频：${candidate.title}`);
+              dialog('未找到原标记的视频', `该视频可能已失效、被删除，或已从当前动态列表消失。已定位到当前已加载范围内投稿时间最接近的可见视频「${candidate.title}」（${formatTime(candidate.ts, true)}），请自行确认。原标记仍然保留。`);
+            }
             return;
           }
           if (end) throw new Error('已到达网页当前可提供的历史末尾，尚未覆盖标记时间，无法完成查找。不能据此判断视频已删除。');
           if (pages >= options.maxPages) throw new Error(`已追加 ${options.maxPages} 批，达到本次定位上限。可再次点击返回继续查找，原标记仍然保留。`);
+          if (timeMode && (pages >= options.timeMaxPages || vm.list.length >= options.timeMaxItems)) {
+            throw new Error(`按时间查找达到加载上限（${options.timeMaxPages}批或约${options.timeMaxItems}条动态），已停止追加，尚未完成定位。`);
+          }
           if (vm.status === 'ERROR') {
             if (retries++ >= options.maxRetries) throw new Error('网页连续加载失败，已停止定位。请稍后重试，不能据此判断视频已删除。');
             report(`加载失败，正在重试（${retries}/${options.maxRetries}）……\n${oldest ? `已加载至：${formatTime(oldest, true)}` : ''}`);
@@ -372,6 +436,7 @@
           while (live()) {
             await sleep(options.poll);
             if (!live()) return;
+            if (timeMode && Date.now() - searchStarted > options.timeMaxDuration) throw new Error('本次按时间查找已达到2分钟上限，已停止追加加载。');
             if (listVm() !== vm) throw new Error('动态列表已切换，定位已停止，请在视频投稿页重新操作。');
             if (signature() !== before) advanced = true;
             if (vm.status !== 'LOADING' && (advanced || ['ERROR', 'NO_MORE', 'EMPTY'].includes(vm.status))) break;
@@ -381,7 +446,7 @@
           if (advanced) { pages++; retries = 0; crossed = wasCovered; }
         }
       } catch (e) { if (live()) { report(e.message); toast(e.message); } }
-      finally { if (mine === token) { running = false; if (stopButton) stopButton.hidden = true; } }
+      finally { if (mine === token) { running = false; if (stopButton) stopButton.hidden = true; if (timeButton) timeButton.disabled = !account; } }
     }
     function scan() {
       scheduled = null;
@@ -396,6 +461,7 @@
       }
       mount();
       positionPanel();
+      updatePickerBounds();
       const vm = listVm();
       const uid = vm?.user?.mid != null ? String(vm.user.mid) : '';
       switchAccount(validId(uid) && uid !== '0' ? uid : '');
@@ -476,7 +542,7 @@
       doc.querySelectorAll('.bdb-exact, .bdb-menu-item, #bdb-style, #bdb-toast').forEach(e => e.remove());
       doc.querySelectorAll('.bdb-time, .bdb-highlight').forEach(e => e.classList.remove('bdb-time', 'bdb-highlight'));
     }
-    const api = { start, scan, restore, cancel, dispose, getState: () => ({ account, data, running, status }) };
+    const api = { start, scan, restore, restoreAtTime, cancel, dispose, getState: () => ({ account, data, running, status }) };
     return api;
   }
 
@@ -492,7 +558,12 @@
     #bdb-panel button:hover,.bdb-dialog button:hover {border-color:#00aeec;color:#00aeec}
     #bdb-panel button:disabled {opacity:.5;cursor:default}
     #bdb-panel .bdb-primary {background:#00aeec;border-color:#00aeec;color:#fff}
+    #bdb-panel .bdb-primary:hover {background:#00a1d6;border-color:#00a1d6;color:#fff}
     #bdb-panel .bdb-danger {color:#d64f62}
+    .bdb-time-form {display:flex;flex-direction:column;gap:7px;padding:10px 0;border-top:1px solid var(--line_regular,#eee)}
+    .bdb-time-form>label {font-size:12px}
+    .bdb-time-form>input {width:100%;min-width:0;border:1px solid var(--line_regular,#d9dce1);border-radius:5px;padding:5px 7px;font:inherit;background:var(--bg1,#fff);color:var(--text1,#18191c);color-scheme:light dark}
+    .bdb-time-form>button {align-self:flex-start}
     .bdb-selectall {display:flex;align-items:center;gap:5px;cursor:pointer}
     #bdb-panel input {accent-color:#00aeec}
     .bdb-list {max-height:360px;min-height:60px;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain}
@@ -516,7 +587,7 @@
     #bdb-panel [hidden] {display:none!important}
   `;
 
-  const exported = { VERSION, SCHEMA, parseTimestamp, formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify, createApp };
+  const exported = { VERSION, SCHEMA, LOOKBACK, pickerValue, pickerBounds, parsePicker, parseTimestamp, formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify, createApp };
   if (typeof module === 'object' && module.exports && typeof window === 'undefined') {
     module.exports = exported;
     return;

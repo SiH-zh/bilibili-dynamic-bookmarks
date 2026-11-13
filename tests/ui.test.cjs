@@ -2,11 +2,11 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
-const { createApp, addBookmark } = require('../bilibili-dynamic-bookmarks.user.js');
+const { createApp, addBookmark, LOOKBACK, pickerValue, pickerBounds } = require('../bilibili-dynamic-bookmarks.user.js');
 const meta = (id, ts = 1000) => ({ id, ts, title: `视频${id}`, author: '测试作者', bvid: 'BV1SgWi6yEjJ' });
 const raw = m => ({ id_str: m.id, modules: { module_author: { pub_ts: m.ts, name: m.author }, module_dynamic: { major: { archive: { title: m.title, bvid: m.bvid } } } } });
 
-function fixture(t, metas = [meta('1', 1100), meta('2', 900)]) {
+function fixture(t, metas = [meta('1', 1100), meta('2', 900)], timing = {}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body><div class="bili-dyn-list"><div class="bili-dyn-list__items"></div></div><aside class="right"><section id="hot">热搜模块</section></aside></body></html>', { url: 'https://t.bilibili.com/?tab=video' });
   const w = dom.window;
   w.HTMLElement.prototype.scrollIntoView = function () { this.dataset.scrolled = 'true'; };
@@ -22,7 +22,7 @@ function fixture(t, metas = [meta('1', 1100), meta('2', 900)]) {
     root.querySelector('.bili-dyn-list__items').append(c); return c;
   }
   metas.forEach(appendCard);
-  const app = createApp(w, storage, { poll: 2, pageDelay: 0, requestTimeout: 30, maxRetries: 0, maxPages: 4 }).start();
+  const app = createApp(w, storage, { poll: 2, pageDelay: 0, requestTimeout: 30, maxRetries: 0, maxPages: 4, ...timing }).start();
   t.after(() => { app.dispose(); dom.window.close(); });
   const click = text => { const b = [...w.document.querySelectorAll('button')].find(e => e.textContent === text); assert.ok(b, `应存在按钮：${text}`); b.click(); };
   return { w, doc: w.document, store, storage, app, vm, appendCard, click };
@@ -191,4 +191,73 @@ test('卡片、标记列表与选择窗口统一使用简洁的时分秒格式',
   assert.match(f.doc.querySelector('.bdb-row time').textContent, /年\d+月\d+日 \d{2}:\d{2}:\d{2}/);
   f.click('回到视频');
   assert.match(f.doc.querySelector('.bdb-choice').textContent, /\d+月\d+日 \d{2}:\d{2}:\d{2}/);
+});
+test('模块内日期时间输入可直接提交，不要求存在标记且不会写入标记存储', async t => {
+  const now = Math.floor(Date.now() / 60000) * 60;
+  const f = fixture(t, [meta('1', now - 120), meta('2', now - 240)]);
+  const input = f.doc.querySelector('#bdb-target-time');
+  assert.equal(input.type, 'datetime-local'); assert.equal(input.step, '60');
+  assert.equal(input.min, pickerBounds().min); assert.equal(input.max, pickerBounds().max);
+  input.value = pickerValue(now);
+  f.click('回到该时间');
+  assert.match(f.app.getState().status, /已定位到所选时间附近/);
+  assert.equal(f.doc.querySelector('[data-did="1"]').dataset.scrolled, 'true');
+  assert.equal(f.storage.get('bdb.v1.account.123'), null);
+  assert.equal(f.doc.querySelector('[role=dialog]'), null);
+});
+test('按时间分页查找最近候选，避免弹出标记失效提醒', async t => {
+  const target = Math.floor(Date.now() / 60000) * 60 - 600;
+  const f = fixture(t, [meta('1', target + 120)]);
+  f.vm.loadmore = () => { f.vm.list.push(raw(meta('2', target - 60))); f.appendCard(meta('2', target - 60)); f.vm.offset = 'next'; f.vm.status = 'NO_MORE'; };
+  await f.app.restoreAtTime(pickerValue(target));
+  assert.match(f.app.getState().status, /相差约 1 分钟/);
+  assert.equal(f.doc.querySelector('[data-did="2"]').dataset.scrolled, 'true');
+  assert.equal(f.doc.querySelector('[role=dialog]'), null);
+});
+test('超过十天、未来及空时间均在加载前拦截', async t => {
+  const now = Math.floor(Date.now() / 1000), f = fixture(t);
+  let loads = 0; f.vm.loadmore = () => { loads++; };
+  await f.app.restoreAtTime(pickerValue(now - LOOKBACK - 120)); assert.match(f.app.getState().status, /最近10天/);
+  await f.app.restoreAtTime(pickerValue(now + 120)); assert.match(f.app.getState().status, /未来/);
+  await f.app.restoreAtTime(''); assert.match(f.app.getState().status, /有效/);
+  assert.equal(loads, 0); assert.equal(f.app.getState().running, false);
+});
+test('按时间查找达到卡片数量上限后停止追加，不假装定位成功', async t => {
+  const target = Math.floor(Date.now() / 60000) * 60 - 600;
+  const f = fixture(t, [meta('1', target + 300), meta('2', target + 180)], { timeMaxItems: 2 });
+  let loads = 0; f.vm.loadmore = () => { loads++; };
+  await f.app.restoreAtTime(pickerValue(target));
+  assert.equal(loads, 0); assert.match(f.app.getState().status, /加载上限/);
+  assert.equal(f.doc.querySelector('.bdb-highlight'), null);
+});
+test('按时间查找达到批次上限后停止发出后续请求', async t => {
+  const target = Math.floor(Date.now() / 60000) * 60 - 600;
+  const f = fixture(t, [meta('1', target + 300)], { timeMaxPages: 1 });
+  let loads = 0;
+  f.vm.loadmore = () => { loads++; f.vm.list.push(raw(meta('2', target + 180))); f.appendCard(meta('2', target + 180)); f.vm.offset = 'next'; };
+  await f.app.restoreAtTime(pickerValue(target));
+  assert.equal(loads, 1); assert.match(f.app.getState().status, /加载上限/);
+  assert.equal(f.doc.querySelector('.bdb-highlight'), null);
+});
+test('达到十天边界不再追加更早批次，候选始终在十天以内', async t => {
+  const now = Math.floor(Date.now() / 1000), target = Math.ceil((now - LOOKBACK) / 60) * 60;
+  const f = fixture(t, [meta('1', target + 120), meta('2', now - LOOKBACK - 120)]);
+  let loads = 0; f.vm.loadmore = () => { loads++; };
+  await f.app.restoreAtTime(pickerValue(target));
+  assert.equal(loads, 0); assert.equal(f.doc.querySelector('[data-did="1"]').dataset.scrolled, 'true');
+  assert.equal(f.doc.querySelector('[data-did="2"]').dataset.scrolled, undefined);
+});
+test('按时间查找等待期间也执行总时长上限，停止按钮与输入入口恢复可用', async t => {
+  const target = Math.floor(Date.now() / 60000) * 60 - 600;
+  const f = fixture(t, [meta('1', target + 300)], { timeMaxDuration: 5 });
+  f.vm.loadmore = () => { f.vm.status = 'LOADING'; };
+  await f.app.restoreAtTime(pickerValue(target));
+  assert.match(f.app.getState().status, /2分钟上限/);
+  assert.equal(f.app.getState().running, false);
+  assert.equal(f.doc.querySelector('.bdb-time-form button').disabled, false);
+});
+test('新增日期限制不影响旧标记返回十天以前的已加载视频', async t => {
+  const old = Math.floor(Date.now() / 1000) - LOOKBACK - 86400;
+  const f = fixture(t, [meta('1', old)]);
+  await f.app.restore(meta('1', old)); assert.match(f.app.getState().status, /已回到标记视频/);
 });

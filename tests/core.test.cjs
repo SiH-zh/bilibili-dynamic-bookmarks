@@ -1,8 +1,32 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseTimestamp, formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify } = require('../bilibili-dynamic-bookmarks.user.js');
+const { LOOKBACK, pickerValue, pickerBounds, parsePicker, parseTimestamp, formatTime, recordMeta, normalizeStore, addBookmark, removeBookmarks, nearest, classify } = require('../bilibili-dynamic-bookmarks.user.js');
 const make = (id = '1270165298557747203', ts = 1794561600) => ({ id, ts, title: '视频标题', author: '作者', bvid: 'BV1SgWi6yEjJ' });
+
+test('日期选择固定为北京时间，跨月及分钟边界换算正确', () => {
+  const now = Date.UTC(2026, 0, 31, 16, 8, 35) / 1000;
+  assert.equal(pickerValue(now), '2026-02-01T00:08');
+  assert.equal(parsePicker('2026-02-01T00:08', now), now - 35);
+  const bounds = pickerBounds(now);
+  assert.equal(bounds.max, '2026-02-01T00:08');
+  assert.ok(parsePicker(bounds.min, now) >= now - LOOKBACK);
+  assert.throws(() => parsePicker(pickerValue(parsePicker(bounds.min, now) - 60), now), /最近10天/);
+});
+test('日期选择拒绝未来、超过十天及非法日期，不依赖浏览器输入限制', () => {
+  const now = Date.UTC(2026, 2, 1, 12) / 1000;
+  assert.equal(parsePicker(pickerValue(now - LOOKBACK), now), now - LOOKBACK);
+  assert.throws(() => parsePicker(pickerValue(now + 60), now), /未来/);
+  assert.throws(() => parsePicker('2026-02-30T20:00', now), /有效/);
+  assert.throws(() => parsePicker('', now), /有效/);
+  assert.throws(() => parsePicker('2026-03-01T24:00', now), /有效/);
+});
+test('按时间定位可匹配相同秒数或列表最新视频，不改变唯一标识定位规则', () => {
+  const rows = [make('1', 1100), make('2', 900)];
+  assert.equal(classify(rows, { mode: 'time', ts: 1100 }).kind, 'exact');
+  assert.equal(classify(rows, { mode: 'time', ts: 1200 }).kind, 'time-ready');
+  assert.equal(classify(rows, make('9', 1200)).kind, 'incomplete');
+});
 
 test('固定北京时间并保留秒数及跨年年份', () => {
   const ts = Date.UTC(2025, 11, 31, 16, 8, 35) / 1000;

@@ -1,0 +1,13 @@
+{
+  "name": "bilibili-dynamic-bookmarks",
+  "version": "0.1.0",
+  "private": true,
+  "description": "哔哩哔哩动态精确时间与视频标记油猴脚本",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "check": "node --check bilibili-dynamic-bookmarks.user.js && node scripts/check-version.cjs"
+  },
+  "engines": { "node": ">=24.15.0" },
+  "devDependencies": { "jsdom": "31.0.1" }
+}

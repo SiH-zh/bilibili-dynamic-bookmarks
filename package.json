@@ -1,8 +1,11 @@
 {
   "name": "bilibili-dynamic-bookmarks",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
-  "description": "哔哩哔哩动态精确时间与视频标记油猴脚本",
+  "description": "哔哩哔哩网站动态页：精准时间显示与视频书签跳转",
+  "homepage": "https://github.com/SiH-zh/bilibili-dynamic-bookmarks",
+  "repository": { "type": "git", "url": "https://github.com/SiH-zh/bilibili-dynamic-bookmarks.git" },
+  "bugs": { "url": "https://github.com/SiH-zh/bilibili-dynamic-bookmarks/issues" },
   "license": "MIT",
   "scripts": {
     "test": "node --test tests/*.test.cjs",

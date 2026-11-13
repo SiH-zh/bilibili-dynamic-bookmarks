@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="650" viewBox="0 0 1080 650" role="img" aria-labelledby="title desc">
+  <title id="title">精准时间显示与视频书签跳转功能示意</title>
+  <desc id="desc">显示精确时间和标记菜单的视频卡片，以及保留的原生热搜和新增的视频标记模块。全部内容为演示数据。</desc>
+  <style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#24292f}.small{font-size:13px;fill:#64748b}.body{font-size:15px}.heading{font-size:18px;font-weight:600}.blue{fill:#009ed7}.white{fill:white}</style>
+  <rect width="1080" height="650" rx="14" fill="#f1f6f9"/>
+  <text x="32" y="45" font-size="26" font-weight="600">精准时间显示 · 视频书签跳转</text>
+  <text x="32" y="73" class="small">动态视频投稿页增强 · 北京时间 · 界面示意（演示数据）</text>
+  <rect x="28" y="99" width="638" height="243" rx="10" fill="white" stroke="#dae4ea"/>
+  <circle cx="64" cy="136" r="16" fill="#bce9fa"/>
+  <text x="94" y="132" class="heading">示例创作者甲</text>
+  <text x="94" y="159" class="small">今天 · 投稿了视频 · 11月13日 20:08:35</text>
+  <rect x="48" y="184" width="205" height="130" rx="8" fill="#cceef7"/>
+  <circle cx="149" cy="249" r="24" fill="#00aeec"/>
+  <path d="M143 236 L143 262 L163 249 Z" fill="white"/>
+  <text x="274" y="211" class="heading">刚刚看到的视频，下次还能找到</text>
+  <text x="274" y="242" class="small">保留相对时间，并追加精确到秒的时间。</text>
+  <text x="274" y="271" class="small">三点菜单添加书签，刷新后继续阅读。</text>
+  <text x="629" y="137" font-size="25">⋮</text>
+  <rect x="504" y="150" width="139" height="48" rx="7" fill="white" stroke="#c7e6f4"/>
+  <text x="523" y="180" class="body blue">标记此视频</text>
+  <rect x="28" y="360" width="638" height="231" rx="10" fill="white" stroke="#dae4ea"/>
+  <text x="49" y="395" class="heading">示例创作者乙</text>
+  <text x="49" y="422" class="small">昨天 · 投稿了视频 · 11月12日 18:30:06</text>
+  <rect x="49" y="444" width="205" height="122" rx="8" fill="#e0e8fc"/>
+  <path d="M140 481 L140 524 L171 502 Z" fill="#8d9ee4"/>
+  <text x="274" y="473" class="heading">选择一个日期，返回附近视频</text>
+  <text x="274" y="505" class="small">唯一编号定位，投稿时间作为备用依据。</text>
+  <text x="274" y="535" class="small">显示加载进度，支持随时停止。</text>
+  <rect x="686" y="99" width="365" height="119" rx="10" fill="white" stroke="#dae4ea"/>
+  <text x="707" y="132" class="heading">哔哩哔哩热搜</text>
+  <text x="707" y="162" class="small">1　热门话题示例</text>
+  <text x="707" y="194" class="small blue">保留原生模块和原有吸顶</text>
+  <rect x="686" y="232" width="365" height="382" rx="10" fill="white" stroke="#b9deee"/>
+  <text x="707" y="266" class="heading">视频标记</text>
+  <text x="707" y="293" class="small">共1个书签 · 独立吸顶</text>
+  <rect x="707" y="310" width="99" height="31" rx="5" fill="#00aeec"/>
+  <text x="726" y="331" class="body white">回到视频</text>
+  <text x="707" y="369" class="small">选择时间（北京时间）</text>
+  <rect x="707" y="381" width="322" height="34" rx="5" fill="#fbfdff" stroke="#d9e3e8"/>
+  <text x="720" y="404" class="body">2026/11/13　20:00</text>
+  <text x="707" y="441" class="small">仅最近10天，返回时间最接近的视频。</text>
+  <rect x="707" y="454" width="118" height="32" rx="5" fill="#00aeec"/>
+  <text x="720" y="476" class="body white">回到该时间</text>
+  <line x1="707" y1="503" x2="1029" y2="503" stroke="#e1e8ed"/>
+  <text x="707" y="529" class="body">□　示例视频书签</text>
+  <text x="729" y="553" class="small">11月13日 20:08:35　返回视频　删除</text>
+  <text x="707" y="588" class="small blue">正在加载视频……已加载至 19:55:08</text>
+  <text x="32" y="626" class="small">本地保存书签，不改变网站收藏与点赞。示意内容全部使用演示数据。</text>
+</svg>

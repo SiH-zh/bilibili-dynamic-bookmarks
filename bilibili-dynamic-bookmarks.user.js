@@ -1,7 +1,12 @@
 // ==UserScript==
-// @name         哔哩哔哩动态：精确时间与视频标记
+// @name         哔哩哔哩网站动态页：精准时间显示与视频书签跳转
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      1.1.0
+// @version      1.1.1
+// @author       SiH-zh
+// @homepageURL  https://github.com/SiH-zh/bilibili-dynamic-bookmarks
+// @supportURL   https://github.com/SiH-zh/bilibili-dynamic-bookmarks/issues
+// @updateURL    https://raw.githubusercontent.com/SiH-zh/bilibili-dynamic-bookmarks/main/bilibili-dynamic-bookmarks.user.js
+// @downloadURL  https://raw.githubusercontent.com/SiH-zh/bilibili-dynamic-bookmarks/main/bilibili-dynamic-bookmarks.user.js
 // @description  动态时间精确到秒；多标记、批量删除、返回标记，以及按最近10天内的日期时间定位视频。
 // @match        https://t.bilibili.com/*
 // @run-at       document-idle
@@ -18,7 +23,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.1.1';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';

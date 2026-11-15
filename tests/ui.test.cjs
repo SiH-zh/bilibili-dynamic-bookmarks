@@ -53,7 +53,56 @@ test('全选、取消全选与多选删除', t => {
   assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 2);
   all.click(); assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 0);
   f.doc.querySelector('.bdb-row input').click(); f.click('删除所选（1）');
+  assert.equal(f.app.getState().data.bookmarks.length, 2);
+  f.click('确认删除');
   assert.equal(f.app.getState().data.bookmarks.length, 1);
+});
+
+test('单条删除先确认，取消和退出弹窗均保留数据，确认后只删除目标', t => {
+  const f = fixture(t);
+  f.doc.querySelectorAll('.bdb-menu-item').forEach(b => b.click());
+  const saved = structuredClone(f.storage.get('bdb.v1.account.123'));
+  f.click('展开');
+  const deleteOne = () => f.doc.querySelector('[aria-label="选择标记：视频1"]').closest('.bdb-row').querySelector('.bdb-danger').click();
+  deleteOne();
+  assert.match(f.doc.querySelector('[role=dialog]').textContent, /视频1/);
+  assert.match(f.doc.querySelector('[role=dialog]').textContent, /无法撤销/);
+  assert.equal(f.doc.activeElement.textContent, '取消');
+  assert.deepEqual(f.storage.get('bdb.v1.account.123'), saved);
+  f.click('取消');
+  assert.equal(f.doc.querySelector('[role=dialog]'), null);
+  deleteOne(); f.doc.dispatchEvent(new f.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(f.doc.querySelector('[role=dialog]'), null);
+  assert.deepEqual(f.storage.get('bdb.v1.account.123'), saved);
+  deleteOne(); f.click('确认删除');
+  assert.deepEqual(f.storage.get('bdb.v1.account.123').bookmarks.map(b => b.id), ['2']);
+});
+
+test('批量删除显示准确数量，取消保留勾选，确认仅删除打开弹窗时的目标', t => {
+  const f = fixture(t, [meta('1'), meta('2'), meta('3')]);
+  f.doc.querySelectorAll('.bdb-menu-item').forEach(b => b.click()); f.click('展开');
+  const check = id => f.doc.querySelector(`[aria-label="选择标记：视频${id}"]`);
+  check('1').click(); check('2').click();
+  f.click('删除所选（2）');
+  assert.match(f.doc.querySelector('[role=dialog]').textContent, /所选的 2 条/);
+  f.click('取消'); assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 2);
+  f.click('删除所选（2）'); check('3').click(); f.click('确认删除');
+  assert.deepEqual(f.storage.get('bdb.v1.account.123').bookmarks.map(b => b.id), ['3']);
+  assert.equal(f.doc.querySelectorAll('.bdb-row input:checked').length, 1);
+  f.click('删除所选（1）'); f.click('取消');
+  f.doc.querySelector('.bdb-selectall input').click(); f.doc.querySelector('.bdb-selectall input').click();
+  f.click('删除所选（1）'); f.click('确认删除');
+  assert.equal(f.app.getState().data.bookmarks.length, 0);
+});
+
+test('确认窗口随账号切换清理，旧确认不会删除其他账号标记', t => {
+  const f = fixture(t); f.click('标记此视频'); f.click('删除标记');
+  const confirm = [...f.doc.querySelectorAll('[role=dialog] button')].find(b => b.textContent === '确认删除');
+  f.vm.user.mid = 456; f.app.scan();
+  assert.equal(f.doc.querySelector('[role=dialog]'), null);
+  f.click('标记此视频'); confirm.click();
+  assert.equal(f.storage.get('bdb.v1.account.123').bookmarks.length, 1);
+  assert.equal(f.storage.get('bdb.v1.account.456').bookmarks.length, 1);
 });
 test('多个标记先选目标，单行返回直接定位', async t => {
   const f = fixture(t);

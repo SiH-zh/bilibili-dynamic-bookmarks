@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩网站动态页：精准时间显示与视频书签跳转
 // @namespace    urn:bilibili-dynamic-bookmarks
-// @version      1.2.2
+// @version      1.3.0
 // @author       SiH-zh
 // @homepageURL  https://github.com/SiH-zh/bilibili-dynamic-bookmarks
 // @supportURL   https://github.com/SiH-zh/bilibili-dynamic-bookmarks/issues
@@ -23,7 +23,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.2.2';
+  const VERSION = '1.3.0';
   const SCHEMA = 1;
   const PREFIX = 'bdb.v1.account.';
   const CARD = '.bili-dyn-list__item';
@@ -241,6 +241,15 @@
         render(); toast(`已删除 ${ids.size} 条标记`);
       }
     }
+    function requestDelete(ids) {
+      const targets = data.bookmarks.filter(b => ids.has(b.id));
+      if (!targets.length || !account || storageError) return;
+      const confirmedIds = new Set(targets.map(b => b.id)), owner = account;
+      const detail = targets.length === 1 ? `确定删除以下视频的标记吗？\n${targets[0].title}` : `确定删除所选的 ${targets.length} 条视频标记吗？`;
+      dialog('确认删除标记', `${detail}\n\n仅删除本地标记，不会删除网站上的视频或动态。删除后无法撤销。`, [], () => {
+        if (!disposed && enabled() && account === owner) deleteIds(confirmedIds);
+      });
+    }
     function render() {
       if (!panel) return;
       syncExpansion();
@@ -256,7 +265,7 @@
         const title = element('div', 'bdb-title', b.title); title.title = b.title;
         body.append(title, element('div', 'bdb-muted', b.author), element('time', 'bdb-muted', formatTime(b.ts, true)));
         const actions = element('div', 'bdb-actions');
-        actions.append(button('返回视频', () => restore(b)), button('删除标记', () => deleteIds(new Set([b.id])), 'bdb-danger'));
+        actions.append(button('返回视频', () => restore(b)), button('删除标记', () => requestDelete(new Set([b.id])), 'bdb-danger'));
         body.append(actions); row.append(check, body); listNode.append(row);
       }
       updateSelection();
@@ -342,7 +351,7 @@
           selected.clear(); if (allInput.checked) data.bookmarks.forEach(b => selected.add(b.id)); render();
         });
         label.append(allInput, doc.createTextNode('全选'));
-        deleteButton = button('删除所选', () => deleteIds(new Set(selected)), 'bdb-danger'); manage.append(label, deleteButton);
+        deleteButton = button('删除所选', () => requestDelete(new Set(selected)), 'bdb-danger'); manage.append(label, deleteButton);
         listNode = element('div', 'bdb-list');
         statusNode = element('div', 'bdb-status'); statusNode.setAttribute('role', 'status'); statusNode.setAttribute('aria-live', 'polite');
         panelContent.append(countNode, actions, timeForm, manage, listNode, statusNode);
@@ -352,16 +361,21 @@
       right.append(panel); render(); positionPanel();
     }
     function closeDialog() { overlay?.remove(); overlay = null; }
-    function dialog(title, text, choices = []) {
+    function dialog(title, text, choices = [], onConfirm = null) {
       closeDialog();
       const previousFocus = doc.activeElement;
       overlay = element('div', 'bdb-overlay');
       const box = element('div', 'bdb-dialog'); box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
       const heading = element('h2', '', title); heading.id = 'bdb-dialog-title'; box.setAttribute('aria-labelledby', heading.id);
       box.append(heading, element('p', '', text));
-      const close = button('关闭', () => { closeDialog(); previousFocus?.focus?.(); });
+      const close = button(onConfirm ? '取消' : '关闭', () => { closeDialog(); previousFocus?.focus?.(); });
       for (const c of choices) box.append(button(`${c.title}\n${c.author} · ${formatTime(c.ts, true)}`, () => { closeDialog(); restore(c); }, 'bdb-choice'));
-      box.append(close); overlay.append(box); doc.body.append(overlay); close.focus();
+      if (onConfirm) {
+        const actions = element('div', 'bdb-actions');
+        const confirm = button('确认删除', () => { confirm.disabled = true; closeDialog(); onConfirm(); previousFocus?.focus?.(); }, 'bdb-danger');
+        actions.append(close, confirm); box.append(actions);
+      } else box.append(close);
+      overlay.append(box); doc.body.append(overlay); close.focus();
     }
     function chooseTarget() {
       if (running) return toast('正在定位，请先停止当前定位。');
@@ -592,6 +606,8 @@
     #bdb-panel .bdb-primary {background:#00aeec;border-color:#00aeec;color:#fff}
     #bdb-panel .bdb-primary:hover {background:#00a1d6;border-color:#00a1d6;color:#fff}
     #bdb-panel .bdb-danger {color:#d64f62}
+    .bdb-dialog .bdb-danger {color:#d64f62;border-color:#d64f62}
+    .bdb-dialog .bdb-danger:hover {background:#d64f62;color:#fff}
     .bdb-time-form {display:flex;flex-direction:column;gap:7px;padding:10px 0;border-top:1px solid var(--line_regular,#eee)}
     .bdb-time-form>label {font-size:12px}
     .bdb-time-form>input {width:100%;min-width:0;border:1px solid var(--line_regular,#d9dce1);border-radius:5px;padding:5px 7px;font:inherit;background:var(--bg1,#fff);color:var(--text1,#18191c);color-scheme:light dark}
